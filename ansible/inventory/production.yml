@@ -1,0 +1,12 @@
+all:
+  children:
+    vps:
+      hosts:
+        sumopod_lighthouse:
+          ansible_host: 1.1.1.1
+          ansible_user: ubuntu
+          ansible_port: 22
+          ansible_become: true
+          ansible_python_interpreter: /usr/bin/python3
+          # Bootstrap only. After nmfdev access is verified, change to:
+          # ansible_user: nmfdev

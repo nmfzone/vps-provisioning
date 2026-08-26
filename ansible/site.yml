@@ -1,0 +1,45 @@
+- name: Configure Sumopod Lighthouse VPS
+  hosts: vps
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Validate supported target platform
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ansible_facts['distribution_version'] is version('24.04', '>=')
+          - ansible_facts['distribution_version'] is version('25.04', '<')
+          - ansible_facts['architecture'] in ['x86_64', 'aarch64']
+        fail_msg: This playbook supports Ubuntu 24.04 on x86_64 or aarch64 only.
+
+    - name: Validate required deployment variables
+      ansible.builtin.assert:
+        that:
+          - admin_authorized_key is match('^ssh-(ed25519|rsa) ')
+          - vault_admin_password_hash is match('^\$6\$')
+          - vault_admin_password_hash != '$6$REPLACE_WITH_SHA512_CRYPT_HASH'
+          - vault_omniroute_jwt_secret != 'REPLACE_WITH_RANDOM_SECRET'
+          - vault_omniroute_api_key_secret != 'REPLACE_WITH_RANDOM_SECRET'
+          - vault_omniroute_initial_password != 'REPLACE_WITH_RANDOM_SECRET'
+          - vault_omniroute_ws_bridge_secret != 'REPLACE_WITH_RANDOM_SECRET'
+          - vault_omniroute_storage_encryption_key != 'REPLACE_WITH_RANDOM_HEX'
+        fail_msg: Required vaulted values are missing or still placeholders.
+      no_log: true
+  roles:
+    - base
+    - ssh_hardening
+    - firewall
+    - fail2ban
+    - nodejs
+    - bun
+    - omniroute
+    - nginx
+  tasks:
+    - name: Apply pending service configuration before verification
+      ansible.builtin.meta: flush_handlers
+      when: not ansible_check_mode
+
+    - name: Run post-apply verification
+      ansible.builtin.include_role:
+        name: verification
+      when: not ansible_check_mode

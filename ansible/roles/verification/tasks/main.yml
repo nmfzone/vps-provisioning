@@ -1,0 +1,33 @@
+- name: Verify Supervisor program
+  ansible.builtin.command: supervisorctl status omniroute
+  register: supervisor_status
+  changed_when: false
+  failed_when: supervisor_status.rc != 0 or supervisor_status.stdout is not match('^omniroute\s+RUNNING\s+')
+
+- name: Verify loopback listener
+  ansible.builtin.command: "ss -H -ltn sport = :{{ omniroute_port }}"
+  register: omniroute_listeners
+  changed_when: false
+  failed_when: >-
+    ('127.0.0.1:' ~ (omniroute_port | string)) not in omniroute_listeners.stdout or
+    ('0.0.0.0:' ~ (omniroute_port | string)) in omniroute_listeners.stdout or
+    ('[::]:' ~ (omniroute_port | string)) in omniroute_listeners.stdout
+
+- name: Verify UFW status
+  ansible.builtin.command: ufw status verbose
+  register: ufw_status
+  changed_when: false
+  failed_when: >-
+    'Status: active' not in ufw_status.stdout or
+    (ssh_port | string) not in ufw_status.stdout or
+    '80/tcp' not in ufw_status.stdout or
+    '443/tcp' not in ufw_status.stdout or
+    (omniroute_port | string) in ufw_status.stdout
+
+- name: Verify Nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Verify fail2ban configuration
+  ansible.builtin.command: fail2ban-client -t
+  changed_when: false

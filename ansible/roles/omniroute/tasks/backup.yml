@@ -1,0 +1,11 @@
+- name: Backup OmniRoute data before upgrade
+  ansible.builtin.shell: |
+    set -eu
+    supervisorctl stop omniroute
+    install -d -m 0700 /var/backups/omniroute
+    tar --xattrs --acls -C /var/lib -czf /var/backups/omniroute/omniroute-$(date +%F-%H%M%S).tar.gz omniroute
+    find /var/backups/omniroute -type f -mtime +30 -delete
+    supervisorctl start omniroute
+  args:
+    executable: /bin/bash
+  no_log: true

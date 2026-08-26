@@ -1,0 +1,22 @@
+- name: Set UFW defaults
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+- name: Allow outgoing traffic
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+- name: Allow SSH
+  community.general.ufw:
+    rule: allow
+    port: "{{ ssh_port }}"
+    proto: tcp
+- name: Allow HTTP and HTTPS
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: ['80', '443']
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled

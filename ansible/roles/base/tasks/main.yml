@@ -1,0 +1,97 @@
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: [sudo, acl, ca-certificates, curl, gnupg, git, build-essential, python3, iproute2, ufw, fail2ban, nginx, certbot, python3-certbot-nginx, supervisor, unzip, zsh]
+    state: present
+
+- name: Create administrator primary group
+  ansible.builtin.group:
+    name: "{{ admin_user }}"
+    state: present
+
+- name: Create administrator
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    groups: sudo
+    append: true
+    shell: "{{ admin_shell }}"
+    create_home: true
+    password: "{{ admin_password_hash }}"
+    update_password: on_create
+  no_log: true
+
+- name: Check whether administrator exists
+  ansible.builtin.command: "getent passwd {{ admin_user }}"
+  register: admin_account_lookup
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Record administrator availability
+  ansible.builtin.set_fact:
+    admin_account_precheck: "{{ admin_account_lookup.rc == 0 }}"
+
+- name: Install administrator SSH key
+  ansible.posix.authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ admin_authorized_key }}"
+    path: "/home/{{ admin_user }}/.ssh/authorized_keys"
+    manage_dir: true
+    state: present
+  when: not (ansible_check_mode and admin_account_precheck is defined and not admin_account_precheck)
+
+- name: Check for an existing administrator zshrc
+  ansible.builtin.stat:
+    path: "/home/{{ admin_user }}/.zshrc"
+  register: admin_zshrc
+  when: enable_oh_my_zsh | bool
+
+- name: Install Oh My Zsh repository at pinned revision
+  ansible.builtin.git:
+    repo: "{{ oh_my_zsh_repo }}"
+    dest: "/home/{{ admin_user }}/.oh-my-zsh"
+    version: "{{ oh_my_zsh_repo_revision }}"
+    force: false
+    update: false
+  when:
+    - enable_oh_my_zsh | bool
+    - oh_my_zsh_repo_revision | length > 0
+    - not (ansible_check_mode and not admin_account_precheck)
+
+- name: Set Oh My Zsh ownership
+  ansible.builtin.file:
+    path: "/home/{{ admin_user }}/.oh-my-zsh"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    recurse: true
+  when:
+    - enable_oh_my_zsh | bool
+    - not ansible_check_mode
+
+- name: Create administrator zshrc from Oh My Zsh template
+  ansible.builtin.copy:
+    src: "/home/{{ admin_user }}/.oh-my-zsh/templates/zshrc.zsh-template"
+    dest: "/home/{{ admin_user }}/.zshrc"
+    remote_src: true
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: '0644'
+    force: false
+  when:
+    - enable_oh_my_zsh | bool
+    - not admin_zshrc.stat.exists | default(false)
+    - not ansible_check_mode
+
+- name: Enable zsh for administrator login
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    shell: /usr/bin/zsh
+  when:
+    - enable_oh_my_zsh | bool
+    - not (ansible_check_mode and not admin_account_precheck)

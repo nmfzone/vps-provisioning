@@ -1,0 +1,15 @@
+- name: Reread Supervisor configuration
+  ansible.builtin.command: supervisorctl reread
+  changed_when: false
+  listen: Reload OmniRoute supervisor
+  when: not ansible_check_mode
+- name: Update Supervisor programs
+  ansible.builtin.command: supervisorctl update
+  changed_when: false
+  listen: Reload OmniRoute supervisor
+  when: not ansible_check_mode
+- name: Restart OmniRoute
+  ansible.builtin.command: supervisorctl restart omniroute
+  changed_when: true
+  listen: Reload OmniRoute supervisor
+  when: not ansible_check_mode

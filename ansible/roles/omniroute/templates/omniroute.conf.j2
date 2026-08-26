@@ -1,0 +1,16 @@
+[program:omniroute]
+command=/usr/local/libexec/omniroute-start
+directory={{ omniroute_data_dir }}
+user={{ omniroute_user }}
+autostart=true
+autorestart=true
+startsecs=5
+stopsignal=TERM
+stopwaitsecs=75
+stopasgroup=true
+killasgroup=true
+redirect_stderr=true
+stdout_logfile=/var/log/omniroute/supervisor.log
+stdout_logfile_maxbytes=20MB
+stdout_logfile_backups=5
+environment=PATH="{{ bun_install_dir }}:/usr/bin:/bin",HOME="{{ omniroute_data_dir }}",CONFIG_FILE="{{ omniroute_config_dir }}/omniroute.env"

@@ -1,0 +1,10 @@
+# Create an encrypted copy with: ansible-vault encrypt vault.yml
+# Never put real values in this example file.
+vault_admin_authorized_key: "ssh-ed25519 PUBLIC_KEY_MATERIAL"
+vault_admin_password_hash: "REPLACE_WITH_SHA512_CRYPT_HASH"
+vault_letsencrypt_email: "ADMIN_EMAIL"
+vault_omniroute_jwt_secret: "REPLACE_WITH_RANDOM_SECRET"
+vault_omniroute_api_key_secret: "REPLACE_WITH_RANDOM_SECRET"
+vault_omniroute_initial_password: "REPLACE_WITH_RANDOM_SECRET"
+vault_omniroute_ws_bridge_secret: "REPLACE_WITH_RANDOM_SECRET"
+vault_omniroute_storage_encryption_key: "REPLACE_WITH_RANDOM_HEX"

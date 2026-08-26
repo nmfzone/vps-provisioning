@@ -1,0 +1,8 @@
+ansible/group_vars/vps/vault.yml
+*.pem
+*.key
+.env
+.env.*
+.idea/
+.omo/
+.codegraph/

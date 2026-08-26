@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+set -a
+. "{{ omniroute_config_dir }}/omniroute.env"
+set +a
+exec {{ bun_install_dir }}/bunx {{ omniroute_package | quote }} serve --no-open --no-recovery --port {{ omniroute_port | quote }}

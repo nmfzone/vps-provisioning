@@ -1,0 +1,39 @@
+- name: Create static site root without replacing existing content
+  ansible.builtin.file:
+    path: "{{ static_site_root }}"
+    state: directory
+    owner: root
+    group: www-data
+    mode: '0755'
+- name: Check existing index
+  ansible.builtin.stat:
+    path: "{{ static_site_root }}/index.html"
+  register: site_index
+- name: Create placeholder index only when absent
+  ansible.builtin.copy:
+    dest: "{{ static_site_root }}/index.html"
+    content: '<!doctype html><title>nmfdev.web.id</title><h1>nmfdev.web.id</h1>\n'
+    owner: root
+    group: www-data
+    mode: '0644'
+  when: not site_index.stat.exists
+- name: Install Nginx HTTP site configurations
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/nginx/sites-available/{{ item }}"
+    mode: '0644'
+  loop: [main-site-http.conf, omniroute-http.conf]
+  notify: Validate and reload Nginx
+- name: Enable sites
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ item }}"
+    dest: "/etc/nginx/sites-enabled/{{ item }}"
+    state: link
+    force: true
+  loop: [main-site-http.conf, omniroute-http.conf]
+  notify: Validate and reload Nginx
+- name: Disable Ubuntu default site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Validate and reload Nginx

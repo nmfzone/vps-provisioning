@@ -1,0 +1,90 @@
+- name: Create OmniRoute group
+  ansible.builtin.group:
+    name: "{{ omniroute_group }}"
+    system: true
+
+- name: Create OmniRoute user
+  ansible.builtin.user:
+    name: "{{ omniroute_user }}"
+    group: "{{ omniroute_group }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ omniroute_data_dir }}"
+
+- name: Create OmniRoute directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: '{{ omniroute_data_dir }}', owner: '{{ omniroute_user }}', group: '{{ omniroute_group }}', mode: '0750'}
+    - {path: '{{ omniroute_config_dir }}', owner: 'root', group: '{{ omniroute_group }}', mode: '0750'}
+    - {path: '/var/log/omniroute', owner: '{{ omniroute_user }}', group: '{{ omniroute_group }}', mode: '0750'}
+    - {path: '{{ omniroute_data_dir }}/.cache', owner: '{{ omniroute_user }}', group: '{{ omniroute_group }}', mode: '0700'}
+    - {path: '{{ omniroute_data_dir }}/.ansible/tmp', owner: '{{ omniroute_user }}', group: '{{ omniroute_group }}', mode: '0700'}
+
+- name: Check OmniRoute account availability
+  ansible.builtin.command: "getent passwd {{ omniroute_user }}"
+  register: omniroute_account_lookup
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Resolve pinned OmniRoute package with Bunx
+  ansible.builtin.command: "{{ bun_install_dir }}/bunx {{ omniroute_package }} --version"
+  environment:
+    HOME: "{{ omniroute_data_dir }}"
+    BUN_CONFIG_REGISTRY: https://registry.npmjs.org
+  become_user: "{{ omniroute_user }}"
+  register: omniroute_package_resolution
+  changed_when: false
+  retries: 3
+  delay: 20
+  until: omniroute_package_resolution.rc == 0
+  when: not ansible_check_mode
+
+- name: Render OmniRoute environment
+  ansible.builtin.template:
+    src: omniroute.env.j2
+    dest: "{{ omniroute_config_dir }}/omniroute.env"
+    owner: root
+    group: "{{ omniroute_group }}"
+    mode: '0640'
+  no_log: true
+  notify: Reload OmniRoute supervisor
+
+- name: Ensure local executable directory exists
+  ansible.builtin.file:
+    path: /usr/local/libexec
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install secret-loading OmniRoute wrapper
+  ansible.builtin.template:
+    src: omniroute-start.j2
+    dest: /usr/local/libexec/omniroute-start
+    owner: root
+    group: "{{ omniroute_group }}"
+    mode: '0750'
+  no_log: true
+  notify: Reload OmniRoute supervisor
+
+- name: Render Supervisor configuration
+  ansible.builtin.template:
+    src: omniroute.conf.j2
+    dest: /etc/supervisor/conf.d/omniroute.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload OmniRoute supervisor
+
+- name: Ensure Supervisor is enabled
+  ansible.builtin.service:
+    name: supervisor
+    state: started
+    enabled: true
+  when: not ansible_check_mode
