@@ -95,3 +95,14 @@
   when:
     - enable_oh_my_zsh | bool
     - not (ansible_check_mode and not admin_account_precheck)
+
+- name: Permanently change the ansible user
+  ansible.builtin.lineinfile:
+    path: ./../../../inventory/production.yml
+    regexp: '^ansible_user: ubuntu$'
+    line: "ansible_user: {{ admin_user }}"
+    backrefs: yes
+  delegate_to: localhost
+  when:
+    - task_result.rc == 0
+    - not ansible_check_mode

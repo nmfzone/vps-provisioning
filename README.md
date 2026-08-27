@@ -31,8 +31,8 @@ Keep the original Ubuntu session open. Verify `ssh -o PreferredAuthentications=p
 ## Architecture
 
 - Public firewall exposure is SSH, HTTP, and HTTPS only; OmniRoute listens on `127.0.0.1:20128`.
-- OmniRoute runs as unprivileged `omniroute` under Supervisor, using native `/usr/local/bin/bunx omniroute@3.8.49 serve --no-open --no-recovery --port 20128`.
-- Node.js 24 is installed before Bun from NodeSource's signed `node_24.x` APT repository. This provides `/usr/bin/node` for OmniRoute's published `#!/usr/bin/env node` executable; Bunx remains the package resolver and launcher.
+- OmniRoute runs as unprivileged `omniroute` under Supervisor. Ansible installs exact `omniroute@3.8.49` with npm into the dedicated, service-owned `/var/lib/omniroute/npm` prefix, and the secret-loading wrapper executes `/var/lib/omniroute/npm/bin/omniroute` directly without resolving packages during service restarts.
+- Node.js 24 is installed from NodeSource's signed `node_24.x` APT repository and satisfies OmniRoute 3.8.49's declared Node engine (`>=22.22.2 <23 || >=24.0.0 <27`).
 - Nginx serves the existing `nmfdev.web.id` `index.html` unchanged and reverse-proxies `ai-proxy.nmfdev.web.id`.
 - Let’s Encrypt is intentionally documented as a post-DNS execution step; certificates and private keys remain on the host.
 
@@ -40,9 +40,11 @@ Keep the original Ubuntu session open. Verify `ssh -o PreferredAuthentications=p
 
 Run local static checks before any host execution from the `ansible/` directory: `ansible-playbook -i inventory/production.yml site.yml --syntax-check`, `ansible-playbook -i inventory/production.yml site.yml --list-tasks`, `ansible-inventory -i inventory/production.yml --list`, and `ansible-lint site.yml` when installed. A real `--check` contacts the target but is dependency-aware for first-run previews; post-apply service verification is intentionally skipped in check mode.
 
-The Node.js role configures NodeSource directly with an APT keyring and deb822 `Signed-By` repository definition; it does not execute a `curl | bash` installer. It validates that `/usr/bin/node` reports major version 24. On a pristine host, check mode previews repository/package changes but skips Node validation and OmniRoute Bunx resolution because those executables are only created by the real run; on an already provisioned host, installed runtime validation remains active.
+The Node.js role configures NodeSource directly with an APT keyring and deb822 `Signed-By` repository definition; it does not execute a `curl | bash` installer. It validates that `/usr/bin/node` reports major version 24. On a pristine host, check mode previews repository/package and OmniRoute installation changes but skips validation of executables that would only be created by the real run; on an already provisioned host, installed runtime validation remains active.
 
-Before an OmniRoute upgrade, stop it through Supervisor, archive `/var/lib/omniroute` with xattrs/acls into `/var/backups` (root-only, with retention), record Bun and package versions, update the exact package pin, run the Bunx preflight, and verify `/healthz`, logs, and HTTPS. Roll back by restoring the prior package pin and data archive.
+OmniRoute's npm prefix and npm cache are owned by the unprivileged `omniroute` account. Ansible probes the installed package metadata and only invokes npm when the exact pinned version is absent, so Supervisor restarts never contact the registry. `OMNIROUTE_MEMORY_MB` is the sole heap setting: OmniRoute 3.8.49 converts it to the spawned server's Node `--max-old-space-size` value. Do not add a competing heap value to `NODE_OPTIONS`, because an explicit Node heap flag takes precedence over `OMNIROUTE_MEMORY_MB`.
+
+Before an OmniRoute upgrade, stop it through Supervisor, archive `/var/lib/omniroute` with xattrs/acls into `/var/backups` (root-only, with retention), record Node and package versions, update the exact package pin, apply the playbook, and verify `/healthz`, logs, and HTTPS. Roll back by restoring the prior package pin and data archive.
 
 For emergency recovery, use the Tencent Lighthouse browser console, restore `/root/pre-ansible-backup`, temporarily restore a known-good SSH drop-in and UFW rule, validate with `sshd -t`/`nginx -t`, then reload. Certificate issues require checking DNS, HTTP challenge reachability, `/etc/letsencrypt/live/`, and `certbot renew --dry-run`.
 

@@ -1,5 +1,6 @@
 # Create an encrypted copy with: ansible-vault encrypt vault.yml
 # Never put real values in this example file.
+vault_ansible_host: "x.x.x.x"
 vault_admin_authorized_key: "ssh-ed25519 PUBLIC_KEY_MATERIAL"
 vault_admin_password_hash: "REPLACE_WITH_SHA512_CRYPT_HASH"
 vault_letsencrypt_email: "ADMIN_EMAIL"

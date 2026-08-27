@@ -23,27 +23,72 @@
     - {path: '{{ omniroute_config_dir }}', owner: 'root', group: '{{ omniroute_group }}', mode: '0750'}
     - {path: '/var/log/omniroute', owner: '{{ omniroute_user }}', group: '{{ omniroute_group }}', mode: '0750'}
     - {path: '{{ omniroute_data_dir }}/.cache', owner: '{{ omniroute_user }}', group: '{{ omniroute_group }}', mode: '0700'}
+    - {path: '{{ omniroute_npm_cache_dir }}', owner: '{{ omniroute_user }}', group: '{{ omniroute_group }}', mode: '0700'}
+    - {path: '{{ omniroute_npm_prefix }}', owner: '{{ omniroute_user }}', group: '{{ omniroute_group }}', mode: '0750'}
     - {path: '{{ omniroute_data_dir }}/.ansible/tmp', owner: '{{ omniroute_user }}', group: '{{ omniroute_group }}', mode: '0700'}
 
-- name: Check OmniRoute account availability
-  ansible.builtin.command: "getent passwd {{ omniroute_user }}"
-  register: omniroute_account_lookup
+- name: Check installed OmniRoute package version
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/node
+      - -p
+      - "require('{{ omniroute_npm_prefix }}/lib/node_modules/{{ omniroute_package_name }}/package.json').version"
+  register: omniroute_installed_version
   changed_when: false
   failed_when: false
   check_mode: false
 
-- name: Resolve pinned OmniRoute package with Bunx
-  ansible.builtin.command: "{{ bun_install_dir }}/bunx {{ omniroute_package }} --version"
+- name: Install pinned OmniRoute npm package
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/npm
+      - install
+      - --global
+      - "--prefix={{ omniroute_npm_prefix }}"
+      - --save-exact
+      - --no-audit
+      - --no-fund
+      - "{{ omniroute_package }}"
   environment:
     HOME: "{{ omniroute_data_dir }}"
-    BUN_CONFIG_REGISTRY: https://registry.npmjs.org
+    npm_config_cache: "{{ omniroute_npm_cache_dir }}"
+    npm_config_registry: https://registry.npmjs.org
+    npm_config_update_notifier: "false"
+    npm_config_engine_strict: "true"
   become_user: "{{ omniroute_user }}"
-  register: omniroute_package_resolution
-  changed_when: false
+  register: omniroute_npm_install
+  changed_when: omniroute_npm_install.rc == 0
   retries: 3
   delay: 20
-  until: omniroute_package_resolution.rc == 0
-  when: not ansible_check_mode
+  until: omniroute_npm_install.rc == 0
+  notify: Reload OmniRoute supervisor
+  when:
+    - omniroute_installed_version.rc != 0 or omniroute_installed_version.stdout | trim != omniroute_package_version
+    - not ansible_check_mode
+
+- name: Report pinned OmniRoute npm installation in check mode
+  ansible.builtin.debug:
+    msg: "Would install {{ omniroute_package }} into {{ omniroute_npm_prefix }} as {{ omniroute_user }}"
+  changed_when: true
+  when:
+    - ansible_check_mode
+    - omniroute_installed_version.rc != 0 or omniroute_installed_version.stdout | trim != omniroute_package_version
+
+- name: Validate pinned OmniRoute CLI
+  ansible.builtin.command:
+    argv:
+      - "{{ omniroute_executable }}"
+      - --version
+  environment:
+    HOME: "{{ omniroute_data_dir }}"
+    XDG_CACHE_HOME: "{{ omniroute_data_dir }}/.cache"
+  become_user: "{{ omniroute_user }}"
+  register: omniroute_cli_version
+  changed_when: false
+  failed_when: omniroute_cli_version.rc != 0 or omniroute_package_version not in omniroute_cli_version.stdout
+  when:
+    - not ansible_check_mode or (omniroute_installed_version.rc == 0 and omniroute_installed_version.stdout | trim == omniroute_package_version)
+    - omniroute_installed_version.rc == 0 or omniroute_npm_install is changed
 
 - name: Render OmniRoute environment
   ansible.builtin.template:

@@ -10,10 +10,13 @@ omniroute_group: omniroute
 omniroute_data_dir: /var/lib/omniroute
 omniroute_config_dir: /etc/omniroute
 omniroute_port: 20128
-omniroute_package: omniroute@3.8.49
+omniroute_package_name: omniroute
+omniroute_package_version: "3.8.49"
+omniroute_package: "{{ omniroute_package_name }}@{{ omniroute_package_version }}"
+omniroute_npm_prefix: "{{ omniroute_data_dir }}/npm"
+omniroute_npm_cache_dir: "{{ omniroute_data_dir }}/.cache/npm"
+omniroute_executable: "{{ omniroute_npm_prefix }}/bin/omniroute"
 nodejs_major_version: 24
-bun_version: "1.4.0"
-bun_install_dir: /usr/local/bin
 omniroute_memory_mb: 512
 ssh_bootstrap_user: ubuntu
 admin_shell: /bin/bash

@@ -31,7 +31,6 @@
     - firewall
     - fail2ban
     - nodejs
-    - bun
     - omniroute
     - nginx
   tasks:
