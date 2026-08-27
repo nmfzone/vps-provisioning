@@ -43,6 +43,7 @@
     path: "/home/{{ admin_user }}/.ssh/authorized_keys"
     manage_dir: true
     state: present
+  register: admin_setup_completed
   when: not (ansible_check_mode and admin_account_precheck is defined and not admin_account_precheck)
 
 - name: Check for an existing administrator zshrc
@@ -96,13 +97,16 @@
     - enable_oh_my_zsh | bool
     - not (ansible_check_mode and not admin_account_precheck)
 
-- name: Permanently change the ansible user
+- name: Permanently change the bootstrap user to new user
   ansible.builtin.lineinfile:
-    path: ./../../../inventory/production.yml
-    regexp: '^ansible_user: ubuntu$'
-    line: "ansible_user: {{ admin_user }}"
-    backrefs: yes
+    path: "{{ playbook_dir }}/inventory/production.yml"
+    regexp: '^(\s*)ansible_user:\s*ubuntu\s*$'
+    line: '\1ansible_user: {{ admin_user }}'
+    backrefs: true
   delegate_to: localhost
+  become: false
+  run_once: true
   when:
-    - task_result.rc == 0
     - not ansible_check_mode
+    - admin_setup_completed is defined
+    - admin_setup_completed is succeeded

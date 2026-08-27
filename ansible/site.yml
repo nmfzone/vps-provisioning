@@ -23,6 +23,7 @@
           - vault_omniroute_initial_password != 'REPLACE_WITH_RANDOM_SECRET'
           - vault_omniroute_ws_bridge_secret != 'REPLACE_WITH_RANDOM_SECRET'
           - vault_omniroute_storage_encryption_key != 'REPLACE_WITH_RANDOM_HEX'
+          - vault_letsencrypt_email is match('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
         fail_msg: Required vaulted values are missing or still placeholders.
       no_log: true
   roles:

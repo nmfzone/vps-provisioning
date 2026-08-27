@@ -1,5 +1,7 @@
 main_domain: nmfdev.web.id
 proxy_domain: ai-proxy.nmfdev.web.id
+letsencrypt_email: "{{ vault_letsencrypt_email }}"
+letsencrypt_webroot: /var/www/letsencrypt
 admin_user: nmfdev
 ssh_port: 22
 admin_authorized_key: "{{ vault_admin_authorized_key }}"
@@ -18,7 +20,6 @@ omniroute_npm_cache_dir: "{{ omniroute_data_dir }}/.cache/npm"
 omniroute_executable: "{{ omniroute_npm_prefix }}/bin/omniroute"
 nodejs_major_version: 24
 omniroute_memory_mb: 512
-ssh_bootstrap_user: ubuntu
 admin_shell: /bin/bash
 enable_oh_my_zsh: true
 oh_my_zsh_repo: https://github.com/ohmyzsh/ohmyzsh.git

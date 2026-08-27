@@ -5,10 +5,12 @@
     owner: root
     group: www-data
     mode: '0755'
+
 - name: Check existing index
   ansible.builtin.stat:
     path: "{{ static_site_root }}/index.html"
   register: site_index
+
 - name: Create placeholder index only when absent
   ansible.builtin.copy:
     dest: "{{ static_site_root }}/index.html"
@@ -17,6 +19,20 @@
     group: www-data
     mode: '0644'
   when: not site_index.stat.exists
+
+- name: Create ACME webroot
+  ansible.builtin.file:
+    path: "{{ letsencrypt_webroot }}/.well-known/acme-challenge"
+    state: directory
+    owner: root
+    group: www-data
+    mode: '0755'
+
+- name: Check for the managed certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ main_domain }}/fullchain.pem"
+  register: managed_certificate
+
 - name: Install Nginx HTTP site configurations
   ansible.builtin.template:
     src: "{{ item }}.j2"
@@ -24,7 +40,8 @@
     mode: '0644'
   loop: [main-site-http.conf, omniroute-http.conf]
   notify: Validate and reload Nginx
-- name: Enable sites
+
+- name: Enable HTTP sites for ACME bootstrap
   ansible.builtin.file:
     src: "/etc/nginx/sites-available/{{ item }}"
     dest: "/etc/nginx/sites-enabled/{{ item }}"
@@ -32,8 +49,114 @@
     force: true
   loop: [main-site-http.conf, omniroute-http.conf]
   notify: Validate and reload Nginx
+  when: not managed_certificate.stat.exists
+
 - name: Disable Ubuntu default site
   ansible.builtin.file:
     path: /etc/nginx/sites-enabled/default
     state: absent
   notify: Validate and reload Nginx
+
+- name: Apply HTTP configuration before ACME validation
+  ansible.builtin.meta: flush_handlers
+  when: not ansible_check_mode
+
+- name: Issue the managed certificate for both domains
+  ansible.builtin.command:
+    argv:
+      - certbot
+      - certonly
+      - --webroot
+      - --webroot-path
+      - "{{ letsencrypt_webroot }}"
+      - --cert-name
+      - "{{ main_domain }}"
+      - --domain
+      - "{{ main_domain }}"
+      - --domain
+      - "{{ proxy_domain }}"
+      - --email
+      - "{{ letsencrypt_email }}"
+      - --non-interactive
+      - --agree-tos
+    creates: "/etc/letsencrypt/live/{{ main_domain }}/fullchain.pem"
+  register: certificate_issuance
+  changed_when: certificate_issuance.rc == 0
+  failed_when: false
+  become: true
+  no_log: true
+  when:
+    - not ansible_check_mode
+    - not managed_certificate.stat.exists
+
+- name: Recheck the managed certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ main_domain }}/fullchain.pem"
+  register: managed_certificate_after_issuance
+  become: true
+
+- name: Install Nginx HTTPS site configurations
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/nginx/sites-available/{{ item }}"
+    mode: '0644'
+  loop: [main-site-https.conf, omniroute-https.conf]
+  notify: Validate and reload Nginx
+  when: managed_certificate_after_issuance.stat.exists
+
+- name: Enable HTTPS sites
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ item }}"
+    dest: "/etc/nginx/sites-enabled/{{ item }}"
+    state: link
+    force: true
+  loop: [main-site-https.conf, omniroute-https.conf]
+  notify: Validate and reload Nginx
+  when: managed_certificate_after_issuance.stat.exists
+
+- name: Disable HTTP-only sites after HTTPS activation
+  ansible.builtin.file:
+    path: "/etc/nginx/sites-enabled/{{ item }}"
+    state: absent
+  loop: [main-site-http.conf, omniroute-http.conf]
+  notify: Validate and reload Nginx
+  when: managed_certificate_after_issuance.stat.exists
+
+- name: Install Certbot renewal deploy hook
+  ansible.builtin.copy:
+    dest: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
+    content: |
+      #!/bin/sh
+      set -eu
+      nginx -t
+      systemctl reload nginx
+    owner: root
+    group: root
+    mode: '0755'
+  become: true
+  when: managed_certificate_after_issuance.stat.exists
+
+- name: Enable automatic Certbot renewal timer
+  ansible.builtin.systemd_service:
+    name: certbot.timer
+    enabled: true
+    state: started
+  become: true
+  when:
+    - not ansible_check_mode
+    - managed_certificate_after_issuance.stat.exists
+
+- name: Validate certificate renewal after initial issuance
+  ansible.builtin.command:
+    argv:
+      - certbot
+      - renew
+      - --cert-name
+      - "{{ main_domain }}"
+      - --dry-run
+  changed_when: false
+  become: true
+  when:
+    - not ansible_check_mode
+    - certificate_issuance is defined
+    - certificate_issuance is changed
