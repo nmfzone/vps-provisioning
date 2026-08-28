@@ -14,7 +14,7 @@
 - name: Create placeholder index only when absent
   ansible.builtin.copy:
     dest: "{{ static_site_root }}/index.html"
-    content: '<!doctype html><title>nmfdev.web.id</title><h1>nmfdev.web.id</h1>\n'
+    content: '<!doctype html><title>nmfdev.web.id</title><h1>nmfdev.web.id</h1>'
     owner: root
     group: www-data
     mode: '0644'
