@@ -2,20 +2,35 @@
 
 Local-only Ansible automation for the planned Ubuntu 24.04 Sumopod Lighthouse host. This repository does not contain credentials and has not connected to a VPS.
 
-## Before execution
+## Vault Setup
 
-1. Copy `ansible/group_vars/vps/vault.yml.example` to `ansible/group_vars/vps/vault.yml` and replace every placeholder using `ansible-vault encrypt ansible/group_vars/vps/vault.yml`. Do not commit the plaintext file.
-2. Review the host address in `ansible/inventory/production.yml`; keep public keys, email, and credentials only in the encrypted vault.
-
-The `nmfdev` administrator password is stored only as a SHA-512 crypt hash in the encrypted vault (`vault_admin_password_hash`). Generate it interactively without putting the plaintext or hash in shell history, then edit the vault interactively:
+The playbook reads one encrypted file, `ansible/group_vars/vps/vault.yml`. Start from the example and keep real values local:
 
 ```bash
-python3 -c 'import getpass, crypt; print(crypt.crypt(getpass.getpass("Password: "), crypt.mksalt(crypt.METHOD_SHA512)))'
+cp ansible/group_vars/vps/vault.yml.example ansible/group_vars/vps/vault.yml
+chmod 600 ansible/group_vars/vps/vault.yml
 ansible-vault edit ansible/group_vars/vps/vault.yml
+ansible-vault view ansible/group_vars/vps/vault.yml
+ansible-vault encrypt ansible/group_vars/vps/vault.yml  # only if currently plaintext
 ```
 
-Replace `vault_admin_password_hash` with the generated `$6$...` value. The playbook rejects the example placeholder and any hash that does not use SHA-512 crypt. This password is for sudo/local console use; SSH password authentication remains disabled.
-3. Bootstrap with the existing `ubuntu` account:
+Populate every current key independently:
+
+| Vault key | Purpose                                                     | Safe generation or entry                                                                                         |
+| --- |-------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| `vault_ansible_host` | Provider-assigned public IPv4, IPv6, or hostname.           | Enter it in the encrypted editor.                                                                                |
+| `vault_admin_authorized_key` | One complete OpenSSH public key line.                       | Run `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -C "email@example.com"`, then copy only `~/.ssh/id_ed25519.pub`. |
+| `vault_admin_password_hash` | Password for the new generated admin                        | Run `openssl passwd -6`                                                                                          |
+| `vault_letsencrypt_email` | Certificate renewal contact address in normal email format. | Enter it directly in the editor.                                                                                 |
+| `vault_omniroute_jwt_secret` | Independent high-entropy JWT signing secret.                | Run `openssl rand -base64 48`                                                                                    |
+| `vault_omniroute_api_key_secret` | Independent high-entropy API-key secret.                    | Run `openssl rand -base64 48`                                                                                    |
+| `vault_omniroute_initial_password` | Initial OmniRoute application password.                     | Run `openssl rand -base64 36`                                                                                    |
+| `vault_omniroute_ws_bridge_secret` | Independent WebSocket bridge authentication secret.         | Run `openssl rand -base64 48`.                                                                                   |
+| `vault_omniroute_storage_encryption_key` | Independent 64-character hexadecimal storage key.           | Run `openssl rand -hex 32`.                                                                                      |
+
+Run each command separately and paste its output immediately into `ansible-vault edit`; don't reuse values or save terminal transcripts.
+
+Then, bootstrap with the existing `ubuntu` account:
 
 ```bash
 cd ansible
