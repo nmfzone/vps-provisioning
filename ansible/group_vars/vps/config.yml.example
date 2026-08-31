@@ -1,0 +1,4 @@
+ansible_user: ubuntu
+admin_user: admin
+main_domain: example.com
+proxy_domain: ai-proxy.example.com

@@ -1,4 +1,5 @@
 ansible/group_vars/vps/vault.yml
+ansible/group_vars/vps/config.yml
 *.pem
 *.key
 .env

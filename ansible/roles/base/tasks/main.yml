@@ -21,7 +21,7 @@
     append: true
     shell: "{{ admin_shell }}"
     create_home: true
-    password: "{{ admin_password_hash }}"
+    password: "{{ vault_admin_password_hash }}"
     update_password: on_create
   no_log: true
 
@@ -39,7 +39,7 @@
 - name: Install administrator SSH key
   ansible.posix.authorized_key:
     user: "{{ admin_user }}"
-    key: "{{ admin_authorized_key }}"
+    key: "{{ vault_admin_authorized_key }}"
     path: "/home/{{ admin_user }}/.ssh/authorized_keys"
     manage_dir: true
     state: present
@@ -99,9 +99,9 @@
 
 - name: Permanently change the bootstrap user to new user
   ansible.builtin.lineinfile:
-    path: "{{ playbook_dir }}/inventory/production.yml"
-    regexp: '^(\s*)ansible_user:\s*ubuntu\s*$'
-    line: '\1ansible_user: {{ admin_user }}'
+    path: "{{ playbook_dir }}/group_vars/vps/config.yml"
+    regexp: '^(\s*)cfg_ansible_user:\s*$'
+    line: '\1cfg_ansible_user: {{ admin_user }}'
     backrefs: true
   delegate_to: localhost
   become: false

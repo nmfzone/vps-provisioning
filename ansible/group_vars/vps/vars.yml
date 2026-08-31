@@ -1,12 +1,5 @@
-main_domain: nmfdev.web.id
-proxy_domain: ai-proxy.nmfdev.web.id
-letsencrypt_email: "{{ vault_letsencrypt_email }}"
 letsencrypt_webroot: /var/www/letsencrypt
-admin_user: nmfdev
 ssh_port: 22
-admin_authorized_key: "{{ vault_admin_authorized_key }}"
-admin_password_hash: "{{ vault_admin_password_hash }}"
-static_site_root: /var/www/nmfdev.web.id/html
 omniroute_user: omniroute
 omniroute_group: omniroute
 omniroute_data_dir: /var/lib/omniroute

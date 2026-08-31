@@ -2,7 +2,7 @@ server {
     listen 80;
     listen [::]:80;
     server_name {{ main_domain }};
-    root {{ static_site_root }};
+    root /var/www/{{ main_domain }}/html;
     index index.html;
     location ^~ /.well-known/acme-challenge/ {
         root {{ letsencrypt_webroot }};

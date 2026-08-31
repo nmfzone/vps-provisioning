@@ -15,7 +15,7 @@
     - name: Validate required deployment variables
       ansible.builtin.assert:
         that:
-          - admin_authorized_key is match('^ssh-(ed25519|rsa) ')
+          - vault_admin_authorized_key is match('^ssh-(ed25519|rsa) ')
           - vault_admin_password_hash is match('^\$6\$')
           - vault_admin_password_hash != '$6$REPLACE_WITH_SHA512_CRYPT_HASH'
           - vault_omniroute_jwt_secret != 'REPLACE_WITH_RANDOM_SECRET'
@@ -28,7 +28,7 @@
       no_log: true
   roles:
     - base
-    - ssh_hardening
+    - ssh
     - firewall
     - fail2ban
     - nodejs

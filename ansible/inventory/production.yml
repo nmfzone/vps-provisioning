@@ -4,7 +4,7 @@ all:
       hosts:
         sumopod_lighthouse:
           ansible_host: "{{ vault_ansible_host }}"
-          ansible_user: ubuntu
+          ansible_user: "{{ cfg_ansible_user }}"
           ansible_port: 22
           ansible_become: true
           ansible_python_interpreter: /usr/bin/python3

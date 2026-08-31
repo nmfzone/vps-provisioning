@@ -14,7 +14,7 @@ server {
     server_name {{ main_domain }};
     ssl_certificate /etc/letsencrypt/live/{{ main_domain }}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{{ main_domain }}/privkey.pem;
-    root {{ static_site_root }};
+    root /var/www/{{ main_domain }}/html;
     index index.html;
     location / { try_files $uri $uri/ =404; }
 }
