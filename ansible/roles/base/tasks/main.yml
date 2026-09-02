@@ -96,17 +96,3 @@
   when:
     - enable_oh_my_zsh | bool
     - not (ansible_check_mode and not admin_account_precheck)
-
-- name: Permanently change the bootstrap user to new user
-  ansible.builtin.lineinfile:
-    path: "{{ playbook_dir }}/group_vars/vps/config.yml"
-    regexp: '^(\s*)cfg_ansible_user:\s*$'
-    line: '\1cfg_ansible_user: {{ admin_user }}'
-    backrefs: true
-  delegate_to: localhost
-  become: false
-  run_once: true
-  when:
-    - not ansible_check_mode
-    - admin_setup_completed is defined
-    - admin_setup_completed is succeeded

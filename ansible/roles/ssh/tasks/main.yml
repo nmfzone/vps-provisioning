@@ -15,3 +15,17 @@
     group: root
     mode: '0644'
   notify: Validate and reload SSH
+
+- name: Permanently change the bootstrap user to new user
+  ansible.builtin.lineinfile:
+    path: "{{ playbook_dir }}/group_vars/vps/config.yml"
+    regexp: '^(\s*)cfg_ansible_user:.*$'
+    line: '\1cfg_ansible_user: {{ admin_user }}'
+    backrefs: true
+  delegate_to: localhost
+  become: false
+  run_once: true
+  when:
+    - not ansible_check_mode
+    - admin_setup_completed is defined
+    - admin_setup_completed is succeeded
