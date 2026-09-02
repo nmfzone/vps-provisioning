@@ -90,7 +90,7 @@
     - not ansible_check_mode or (omniroute_installed_version.rc == 0 and omniroute_installed_version.stdout | trim == omniroute_package_version)
     - omniroute_installed_version.rc == 0 or omniroute_npm_install is changed
 
-- name: Render OmniRoute environment
+- name: Install OmniRoute environment
   ansible.builtin.template:
     src: omniroute.env.j2
     dest: "{{ omniroute_config_dir }}/omniroute.env"
