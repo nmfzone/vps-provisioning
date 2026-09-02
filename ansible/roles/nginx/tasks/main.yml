@@ -39,7 +39,6 @@
     dest: "/etc/nginx/sites-available/{{ item }}"
     mode: '0644'
   loop: [main-site-http.conf, omniroute-http.conf]
-  notify: Validate and reload Nginx
 
 - name: Enable HTTP sites for ACME bootstrap
   ansible.builtin.file:
@@ -48,14 +47,18 @@
     state: link
     force: true
   loop: [main-site-http.conf, omniroute-http.conf]
-  notify: Validate and reload Nginx
   when: not managed_certificate.stat.exists
 
 - name: Disable Ubuntu default site
   ansible.builtin.file:
     path: /etc/nginx/sites-enabled/default
     state: absent
-  notify: Validate and reload Nginx
+  notify: Reload Nginx
+
+- name: Validate Nginx configuration
+  ansible.builtin.command: nginx -t
+  become: true
+  changed_when: false
 
 - name: Apply HTTP configuration before ACME validation
   ansible.builtin.meta: flush_handlers
@@ -84,7 +87,6 @@
   changed_when: certificate_issuance.rc == 0
   failed_when: false
   become: true
-  no_log: true
   when:
     - not ansible_check_mode
     - not managed_certificate.stat.exists
