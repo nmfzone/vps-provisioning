@@ -1,15 +1,20 @@
 - name: Reread Supervisor configuration
   ansible.builtin.command: supervisorctl reread
-  changed_when: false
+  register: supervisor_reread
+  changed_when: "'No config' not in supervisor_reread.stdout"
+  become: true
   listen: Reload OmniRoute supervisor
   when: not ansible_check_mode
 - name: Update Supervisor programs
   ansible.builtin.command: supervisorctl update
-  changed_when: false
+  register: supervisor_update
+  changed_when: supervisor_update.stdout != ""
+  become: true
   listen: Reload OmniRoute supervisor
   when: not ansible_check_mode
 - name: Restart OmniRoute
   ansible.builtin.command: supervisorctl restart omniroute
   changed_when: true
+  become: true
   listen: Reload OmniRoute supervisor
   when: not ansible_check_mode
