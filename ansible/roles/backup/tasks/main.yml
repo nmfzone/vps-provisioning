@@ -1,0 +1,80 @@
+- name: Create root SSH configuration directory
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Install backup repository deploy key
+  ansible.builtin.copy:
+    dest: "{{ backup_deploy_key_path }}"
+    content: "{{ vault_backup_deploy_key }}"
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Pin GitHub host keys
+  ansible.builtin.template:
+    src: github-known-hosts.j2
+    dest: "{{ backup_known_hosts_file }}"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Install OmniRoute backup script
+  ansible.builtin.template:
+    src: omniroute-backup.j2
+    dest: "{{ backup_script_path }}"
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Syntax-check backup script
+  ansible.builtin.command:
+    argv:
+      - /bin/bash
+      - -n
+      - "{{ backup_script_path }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Install backup service unit
+  ansible.builtin.template:
+    src: omniroute-backup.service.j2
+    dest: /etc/systemd/system/omniroute-backup.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Install backup timer unit
+  ansible.builtin.template:
+    src: omniroute-backup.timer.j2
+    dest: /etc/systemd/system/omniroute-backup.timer
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Reload systemd and enable backup timer
+  ansible.builtin.systemd_service:
+    name: omniroute-backup.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode
+
+- name: Verify backup timer is active
+  ansible.builtin.command: systemctl is-active omniroute-backup.timer
+  register: backup_timer_active
+  changed_when: false
+  failed_when: backup_timer_active.stdout != 'active'
+  when: not ansible_check_mode
+
+- name: Verify backup timer has a scheduled run
+  ansible.builtin.command: systemctl list-timers omniroute-backup.timer --no-pager
+  register: backup_timer_list
+  changed_when: false
+  failed_when: backup_timer_list.rc != 0
+  when: not ansible_check_mode

@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily OmniRoute SQLite backup to GitHub
+
+[Timer]
+OnCalendar={{ backup_schedule }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

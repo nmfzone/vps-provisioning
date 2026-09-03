@@ -12,8 +12,16 @@ omniroute_npm_prefix: "{{ omniroute_data_dir }}/npm"
 omniroute_npm_cache_dir: "{{ omniroute_data_dir }}/.cache/npm"
 omniroute_executable: "{{ omniroute_npm_prefix }}/bin/omniroute"
 nodejs_major_version: 24
-omniroute_memory_mb: 512
+omniroute_memory_mb: 2048
 admin_shell: /bin/bash
 enable_oh_my_zsh: true
 oh_my_zsh_repo: https://github.com/ohmyzsh/ohmyzsh.git
 oh_my_zsh_repo_revision: 146461f7c6d95f4ba1220559d66eb113418b40a8
+backup_repo_dir: /var/backups/omniroute-git
+backup_script_path: /usr/local/libexec/omniroute-backup
+backup_known_hosts_file: /root/.ssh/omniroute-backup_known_hosts
+backup_deploy_key_path: /root/.ssh/omniroute-backup
+backup_snapshot_source: "{{ omniroute_data_dir }}/db_backups"
+backup_target_file: omniroute-backup.sqlite
+backup_schedule: "*-*-* 03:00:00"
+backup_rewrite_day: 1

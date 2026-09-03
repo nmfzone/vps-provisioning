@@ -31,3 +31,42 @@
 - name: Verify fail2ban configuration
   ansible.builtin.command: fail2ban-client -t
   changed_when: false
+
+- name: Check for existing OmniRoute snapshots directory
+  ansible.builtin.stat:
+    path: "{{ backup_snapshot_source }}"
+  register: backup_snapshot_dir
+
+- name: Check for existing OmniRoute snapshots
+  ansible.builtin.find:
+    paths: "{{ backup_snapshot_source }}"
+    patterns: 'db_*.sqlite'
+  register: backup_snapshots
+  when: backup_snapshot_dir.stat.exists
+
+- name: Run one manual backup to verify the pipeline
+  ansible.builtin.command: systemctl start omniroute-backup.service
+  register: manual_backup_run
+  changed_when: true
+  failed_when: manual_backup_run.rc != 0
+  when: backup_snapshot_dir.stat.exists and backup_snapshots.files | length > 0
+
+- name: Confirm the backup file landed in the repository checkout
+  ansible.builtin.stat:
+    path: "{{ backup_repo_dir }}/{{ backup_target_file }}"
+  register: backup_file_check
+  when: backup_snapshot_dir.stat.exists and backup_snapshots.files | length > 0
+
+- name: Assert the backup file exists
+  ansible.builtin.assert:
+    that:
+      - backup_file_check.stat.exists
+  when: backup_snapshot_dir.stat.exists and backup_snapshots.files | length > 0
+
+- name: Report verification skipped when no snapshots yet
+  ansible.builtin.debug:
+    msg: >-
+      No OmniRoute snapshots exist yet; manual backup verification skipped.
+      The first snapshot appears once the app writes data; the timer then pushes
+      it on the next scheduled run.
+  when: not backup_snapshot_dir.stat.exists or backup_snapshots.files | default([]) | length == 0

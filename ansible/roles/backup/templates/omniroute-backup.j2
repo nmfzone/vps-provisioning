@@ -1,0 +1,67 @@
+#!/bin/bash
+set -eu
+
+SNAPSHOT_SOURCE="{{ backup_snapshot_source }}"
+REPO_DIR="{{ backup_repo_dir }}"
+TARGET_FILE="{{ backup_target_file }}"
+BRANCH="{{ vault_backup_branch | default('main') }}"
+REMOTE="git@github.com:{{ vault_backup_repo }}.git"
+REWRITE_DAY="{{ backup_rewrite_day }}"
+KEY="{{ backup_deploy_key_path }}"
+KNOWN_HOSTS="{{ backup_known_hosts_file }}"
+
+# Prefer the GIT_SSH_COMMAND provided by the systemd unit; fall back to a
+# self-contained command so the script also works when run by hand.
+export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -i ${KEY} -o IdentitiesOnly=yes -o UserKnownHostsFile=${KNOWN_HOSTS} -o StrictHostKeyChecking=yes}"
+
+# 1. Select the newest consistent snapshot produced by OmniRoute's built-in backup.
+snapshot=$(find "$SNAPSHOT_SOURCE" -maxdepth 1 -name 'db_*.sqlite' -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)
+if [ -z "$snapshot" ]; then
+  echo "ERROR: no db_*.sqlite snapshot found in $SNAPSHOT_SOURCE" >&2
+  exit 1
+fi
+
+# 2. Ensure the backup repository exists locally.
+if [ ! -d "$REPO_DIR/.git" ]; then
+  if git ls-remote --exit-code "$REMOTE" "$BRANCH" >/dev/null 2>&1; then
+    git clone --quiet --branch "$BRANCH" "$REMOTE" "$REPO_DIR"
+  else
+    # Empty remote repository: initialize locally and point at origin.
+    mkdir -p "$REPO_DIR"
+    git -C "$REPO_DIR" init --quiet -b "$BRANCH"
+    git -C "$REPO_DIR" remote add origin "$REMOTE"
+  fi
+else
+  git -C "$REPO_DIR" pull --quiet --ff-only origin "$BRANCH"
+fi
+
+# 3. Publish the snapshot under a single fixed filename.
+target="$REPO_DIR/$TARGET_FILE"
+if [ -f "$target" ] && cmp -s "$snapshot" "$target"; then
+  echo "Snapshot unchanged; skipping commit"
+else
+  cp -f "$snapshot" "$target"
+
+  # 4. Commit and push.
+  git -C "$REPO_DIR" add "$TARGET_FILE"
+  git -C "$REPO_DIR" -c user.name="omniroute-backup" -c user.email="omniroute-backup@localhost" commit --quiet -m "backup: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  git -C "$REPO_DIR" push --quiet origin "$BRANCH"
+  echo "Pushed $(basename "$snapshot") to $REMOTE"
+fi
+
+# 5. Monthly history rewrite: collapse history to a single commit so the
+#    repository size stays bounded. Runs on REWRITE_DAY regardless of whether
+#    the snapshot changed, so stale history cannot accumulate silently.
+if [ "$(date +%-d)" = "$REWRITE_DAY" ]; then
+  tmp_branch="rewrite-$(date +%s)"
+  cp -f "$target" /tmp/omniroute-backup-current.sqlite
+  git -C "$REPO_DIR" checkout --quiet --orphan "$tmp_branch"
+  git -C "$REPO_DIR" rm -rf --quiet . >/dev/null 2>&1 || true
+  find "$REPO_DIR" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+  mv /tmp/omniroute-backup-current.sqlite "$target"
+  git -C "$REPO_DIR" add "$TARGET_FILE"
+  git -C "$REPO_DIR" -c user.name="omniroute-backup" -c user.email="omniroute-backup@localhost" commit --quiet -m "backup: history rewrite $(date -u +%Y-%m-%d)"
+  git -C "$REPO_DIR" branch -M "$BRANCH"
+  git -C "$REPO_DIR" push --quiet --force origin "$BRANCH"
+  echo "History rewritten on branch $BRANCH"
+fi

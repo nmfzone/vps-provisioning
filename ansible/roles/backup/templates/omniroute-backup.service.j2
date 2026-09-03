@@ -1,0 +1,13 @@
+[Unit]
+Description=OmniRoute daily SQLite backup to GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ backup_script_path }}
+User=root
+Environment="GIT_SSH_COMMAND=ssh -i {{ backup_deploy_key_path }} -o IdentitiesOnly=yes -o UserKnownHostsFile={{ backup_known_hosts_file }} -o StrictHostKeyChecking=yes"
+
+[Install]
+WantedBy=timers.target

@@ -23,6 +23,9 @@
           - vault_omniroute_initial_password != 'REPLACE_WITH_RANDOM_SECRET'
           - vault_omniroute_ws_bridge_secret != 'REPLACE_WITH_RANDOM_SECRET'
           - vault_omniroute_storage_encryption_key != 'REPLACE_WITH_RANDOM_HEX'
+          - vault_backup_repo is match('^[^/\\s]+/[^/\\s]+$')
+          - vault_backup_deploy_key is search('^-----BEGIN (OPENSSH|RSA|EC|DSA) PRIVATE KEY-----')
+          - vault_backup_branch is match('^[A-Za-z0-9._/-]+$')
           - vault_letsencrypt_email is match('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
         fail_msg: Required vaulted values are missing or still placeholders.
       no_log: true
@@ -33,6 +36,7 @@
     - fail2ban
     - nodejs
     - omniroute
+    - backup
     - nginx
   tasks:
     - name: Apply pending service configuration before verification

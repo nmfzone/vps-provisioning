@@ -27,6 +27,9 @@ Populate every current key independently:
 | `vault_omniroute_initial_password` | Initial OmniRoute application password.                     | Run `openssl rand -base64 36`                                                                                    |
 | `vault_omniroute_ws_bridge_secret` | Independent WebSocket bridge authentication secret.         | Run `openssl rand -base64 48`.                                                                                   |
 | `vault_omniroute_storage_encryption_key` | Independent 64-character hexadecimal storage key.           | Run `openssl rand -hex 32`.                                                                                      |
+| `vault_backup_repo` | GitHub `owner/repo` slug of the private backup repository.      | Enter the slug, e.g. `you/omniroute-backup`.                                                 |
+| `vault_backup_deploy_key` | Private half of the read/write SSH deploy key for that repo. | Run `ssh-keygen -t ed25519 -C "omniroute-backup" -f ~/.ssh/omniroute-backup`, paste the private key file, register the `.pub` half as a repo deploy key with write access. |
+| `vault_backup_branch` | Branch the daily backup worker pushes to.                     | Enter the default branch name, usually `main`.                                                |
 
 Run each command separately and paste its output immediately into `ansible-vault edit`; don't reuse values or save terminal transcripts.
 
@@ -64,6 +67,19 @@ Before an OmniRoute upgrade, stop it through Supervisor, archive `/var/lib/omnir
 For emergency recovery, use the Tencent Lighthouse browser console, restore `/root/pre-ansible-backup`, temporarily restore a known-good SSH drop-in and UFW rule, validate with `sshd -t`/`nginx -t`, then reload. Certificate issues require checking DNS, HTTP challenge reachability, `/etc/letsencrypt/live/`, and `certbot renew --dry-run`.
 
 Oh My Zsh is enabled for `nmfdev` by default. The base role installs `zsh`, checks out the configured official Oh My Zsh repository revision into `/home/nmfdev/.oh-my-zsh`, sets the login shell to `/usr/bin/zsh`, and creates `.zshrc` only when it does not already exist. Existing `.zshrc` files are never overwritten, and the `omniroute` service user is not targeted. To disable installation and shell changes, set `enable_oh_my_zsh: false` in `ansible/group_vars/vps/vars.yml`; to upgrade, review and replace `oh_my_zsh_repo_revision` with a vetted commit from the official repository.
+
+A daily backup worker (`omniroute-backup.timer`) publishes the newest OmniRoute SQLite snapshot to the configured GitHub private repository. It copies the app's own consistent snapshot from `/var/lib/omniroute/db_backups/` to a single fixed file (`omniroute-backup.sqlite`) in the repository root, commits, and pushes each day at 03:00 (with `Persistent=true` catch-up). On the 1st of each month it rewrites the repository history to a single commit and force-pushes, so the remote stays small; history is therefore current-state-only, not a point-in-time archive. The built-in local auto-backup (keep-last-5) remains enabled as the on-host safety net.
+
+### One-time GitHub setup (manual)
+
+1. Create a private repository (e.g. `you/omniroute-backup`).
+2. Generate a keypair: `ssh-keygen -t ed25519 -C "omniroute-backup" -f ~/.ssh/omniroute-backup`.
+3. Add `~/.ssh/omniroute-backup.pub` as a deploy key on the repository with write access enabled.
+4. Fill `vault_backup_repo` (the `owner/repo` slug), `vault_backup_deploy_key` (the private key), and `vault_backup_branch` in the vault.
+
+### Restore from the GitHub backup
+
+On a replacement host, clone the repository (or fetch the file from the GitHub web UI), stop OmniRoute through Supervisor, replace `/var/lib/omniroute/storage.sqlite` with the backed-up file, and start OmniRoute again. The snapshot is a standalone SQLite file and needs no WAL sidecars.
 
 ## Safety
 
