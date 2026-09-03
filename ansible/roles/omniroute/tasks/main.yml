@@ -133,3 +133,16 @@
     state: started
     enabled: true
   when: not ansible_check_mode
+
+- name: Enable omniroute autobackup
+  ansible.builtin.command:
+    argv:
+      - "{{ omniroute_executable }}"
+      - backup
+      - auto
+      - enable
+      - --cron
+      - "0 2 * * *"
+      - --retention
+      - 7
+  when: not ansible_check_mode
