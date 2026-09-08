@@ -15,7 +15,7 @@ KNOWN_HOSTS="{{ backup_known_hosts_file }}"
 export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -i ${KEY} -o IdentitiesOnly=yes -o UserKnownHostsFile=${KNOWN_HOSTS} -o StrictHostKeyChecking=yes}"
 
 # 1. Select the newest consistent snapshot produced by OmniRoute's built-in backup.
-snapshot=$(find "$SNAPSHOT_SOURCE" -maxdepth 1 -name 'db_*.sqlite' -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)
+snapshot=$(find "$SNAPSHOT_SOURCE" -maxdepth 1 -name 'omniroute-backup-*' -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)
 if [ -z "$snapshot" ]; then
   echo "ERROR: no db_*.sqlite snapshot found in $SNAPSHOT_SOURCE" >&2
   exit 1
