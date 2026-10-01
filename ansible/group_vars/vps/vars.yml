@@ -1,12 +1,16 @@
-letsencrypt_webroot: /var/www/letsencrypt
+admin_user: "{{ vault_admin_user }}"
+admin_group: "{{ vault_admin_group }}"
 ssh_port: 22
+letsencrypt_webroot: /var/www/letsencrypt
+main_domain: "{{ vault_main_domain }}"
+proxy_domain: "{{ vault_proxy_domain }}"
 omniroute_user: omniroute
 omniroute_group: omniroute
 omniroute_data_dir: /var/lib/omniroute
 omniroute_config_dir: /etc/omniroute
 omniroute_port: 20128
 omniroute_package_name: omniroute
-omniroute_package_version: "3.8.50"
+omniroute_package_version: "3.8.51"
 omniroute_package: "{{ omniroute_package_name }}@{{ omniroute_package_version }}"
 omniroute_npm_prefix: "{{ omniroute_data_dir }}/npm"
 omniroute_npm_cache_dir: "{{ omniroute_data_dir }}/.cache/npm"

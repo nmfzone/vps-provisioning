@@ -14,7 +14,7 @@
 - name: Create placeholder index only when absent
   ansible.builtin.copy:
     dest: "/var/www/{{ main_domain }}/html/index.html"
-    content: '<!doctype html><title>nmfdev.web.id</title><h1>nmfdev.web.id</h1>'
+    content: '<!doctype html><title>{{ main_domain }}</title><h1>{{ main_domain }}</h1>'
     owner: root
     group: www-data
     mode: '0644'

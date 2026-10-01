@@ -44,14 +44,14 @@ ansible-playbook -i inventory/production.yml site.yml --ask-vault-pass
 
 Use the provider image's configured SSH key for bootstrap. Add `--ask-pass` only if that image was explicitly configured for password SSH, and add `--ask-become-pass` only when sudo requires it. Check mode contacts the host but skips runtime verification and tasks whose prerequisites would only be created by the real run.
 
-Keep the original Ubuntu session open. Verify `ssh -o PreferredAuthentications=publickey nmfdev@VPS_PUBLIC_IP 'id; sudo -v'` in a separate terminal. Only then change `ansible_user: ubuntu` to `ansible_user: nmfdev` in the inventory and omit `--ask-pass` for later runs.
+Keep the original Ubuntu session open. Verify `ssh -o PreferredAuthentications=publickey admin@VPS_PUBLIC_IP 'id; sudo -v'` in a separate terminal.
 
 ## Architecture
 
 - Public firewall exposure is SSH, HTTP, and HTTPS only; OmniRoute listens on `127.0.0.1:20128`.
 - OmniRoute runs as unprivileged `omniroute` under Supervisor. Ansible installs exact `omniroute@3.8.49` with npm into the dedicated, service-owned `/var/lib/omniroute/npm` prefix, and the secret-loading wrapper executes `/var/lib/omniroute/npm/bin/omniroute` directly without resolving packages during service restarts.
 - Node.js 24 is installed from NodeSource's signed `node_24.x` APT repository and satisfies OmniRoute 3.8.49's declared Node engine (`>=22.22.2 <23 || >=24.0.0 <27`).
-- Nginx serves the existing `nmfdev.web.id` `index.html` unchanged and reverse-proxies `ai-proxy.nmfdev.web.id`.
+- Nginx serves the existing `example.com` `index.html` unchanged and reverse-proxies `ai-proxy.example.com`.
 - Let’s Encrypt is intentionally documented as a post-DNS execution step; certificates and private keys remain on the host.
 
 ## Operations
@@ -66,7 +66,7 @@ Before an OmniRoute upgrade, stop it through Supervisor, archive `/var/lib/omnir
 
 For emergency recovery, use the Tencent Lighthouse browser console, restore `/root/pre-ansible-backup`, temporarily restore a known-good SSH drop-in and UFW rule, validate with `sshd -t`/`nginx -t`, then reload. Certificate issues require checking DNS, HTTP challenge reachability, `/etc/letsencrypt/live/`, and `certbot renew --dry-run`.
 
-Oh My Zsh is enabled for `nmfdev` by default. The base role installs `zsh`, checks out the configured official Oh My Zsh repository revision into `/home/nmfdev/.oh-my-zsh`, sets the login shell to `/usr/bin/zsh`, and creates `.zshrc` only when it does not already exist. Existing `.zshrc` files are never overwritten, and the `omniroute` service user is not targeted. To disable installation and shell changes, set `enable_oh_my_zsh: false` in `ansible/group_vars/vps/vars.yml`; to upgrade, review and replace `oh_my_zsh_repo_revision` with a vetted commit from the official repository.
+Oh My Zsh is enabled for `admin_user` by default. The base role installs `zsh`, checks out the configured official Oh My Zsh repository revision into `/home/<admin_user>/.oh-my-zsh`, sets the login shell to `/usr/bin/zsh`, and creates `.zshrc` only when it does not already exist. Existing `.zshrc` files are never overwritten, and the `omniroute` service user is not targeted. To disable installation and shell changes, set `enable_oh_my_zsh: false` in `ansible/group_vars/vps/vars.yml`; to upgrade, review and replace `oh_my_zsh_repo_revision` with a vetted commit from the official repository.
 
 A daily backup worker (`omniroute-backup.timer`) publishes the newest OmniRoute SQLite snapshot to the configured GitHub private repository. It copies the app's own consistent snapshot from `/var/lib/omniroute/db_backups/` to a single fixed file (`omniroute-backup.sqlite`) in the repository root, commits, and pushes each day at 03:00 (with `Persistent=true` catch-up). On the 1st of each month it rewrites the repository history to a single commit and force-pushes, so the remote stays small; history is therefore current-state-only, not a point-in-time archive. The built-in local auto-backup (keep-last-5) remains enabled as the on-host safety net.
 
