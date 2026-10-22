@@ -10,13 +10,13 @@ omniroute_data_dir: /var/lib/omniroute
 omniroute_config_dir: /etc/omniroute
 omniroute_port: 20128
 omniroute_package_name: omniroute
-omniroute_package_version: "3.8.51"
+omniroute_package_version: "3.8.52"
 omniroute_package: "{{ omniroute_package_name }}@{{ omniroute_package_version }}"
 omniroute_npm_prefix: "{{ omniroute_data_dir }}/npm"
 omniroute_npm_cache_dir: "{{ omniroute_data_dir }}/.cache/npm"
 omniroute_executable: "{{ omniroute_npm_prefix }}/bin/omniroute"
 nodejs_major_version: 24
-omniroute_memory_mb: 2048
+omniroute_memory_mb: 4096
 admin_shell: /bin/bash
 enable_oh_my_zsh: true
 oh_my_zsh_repo: https://github.com/ohmyzsh/ohmyzsh.git
